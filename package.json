@@ -1,0 +1,32 @@
+{
+  "name": "JSON Chat",
+  "version": "0.01",
+  "description": "A simple JSON-based Node.js chat client.",
+  "keywords": [
+    "chat",
+    "json",
+    "api"
+  ],
+  "maintainers": [
+    "Patrick Lambert (http://dendory.net"
+  ],
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "http://www.opensource.org/licenses/mit-license.php"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/dendory/JSON-Chat.git"
+  },
+  "main": "json_chat.js",
+  "files": [
+    "json_chat",
+    "LICENSE",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=0.8.0"
+  }
+}
