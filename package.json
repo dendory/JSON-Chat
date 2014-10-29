@@ -1,6 +1,6 @@
 {
-  "name": "JSON Chat",
-  "version": "0.01",
+  "name": "json_chat",
+  "version": "0.0.1",
   "description": "A simple JSON-based Node.js chat client.",
   "keywords": [
     "chat",
