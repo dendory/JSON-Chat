@@ -133,6 +133,8 @@ function process_request()
 				if(posts[i]['to'] == "*" || (q['key'] && posts[i]['to'] == find_user(q['key']))) tmpfeed.push({"time": posts[i]['time'], "user": posts[i]['user'], "data": posts[i]['data'], "index": posts[i]['index'], "to": posts[i]['to']}); 
 			}
 		}
+		json["status"] = "OK";
+		json["message"] = "Your feed.";
 		json['feed'] = tmpfeed;
 	}
 	else if(p == "/users/")   // see all users
