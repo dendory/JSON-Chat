@@ -52,7 +52,7 @@ var html_main = "\
    <div class='jumbotron'>\
    <h1>" + appname + "</h1>\
    <p>This is the main page of a the JSON-based chat application. From here, you can accesss a simple proof of concept Bootstrap web client, or access the JSON API directly.</p>\
-   <p><a href='http://github.com/dendory' class='btn btn-primary btn-lg' role='button'>Learn more &raquo;</a></p>\
+   <p><a href='http://github.com/dendory/JSON-Chat' class='btn btn-primary btn-lg' role='button'>Learn more &raquo;</a></p>\
    </div>\
    <h2>Web client</h2>\
    <center>\
