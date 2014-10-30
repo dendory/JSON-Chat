@@ -16,5 +16,4 @@ After that just load your browser to `http://localhost:8080/` or whichever serve
 Next steps
 ----------
 * Add AJAX to the web client.
-* Add user messaging / inbox.
 * Add file or cloud base saving for users and messages.

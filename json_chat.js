@@ -7,11 +7,10 @@ var query = require("querystring");
 var crypto = require('crypto');
 
 var appname = "JSON Chat";
-var version = "0.01";
+var version = "0.02";
 var p, q, res, req, body;
 var users = {};
 var posts = [];
-var messages = [];
 var rexp = /^[\.0-9a-zA-Z_-]+$/;
 var port = "8080";
 var debug = 0;   // debug mode
@@ -26,6 +25,8 @@ var errors =
 	"ERR_MISSING_KEY": "You must call /register/ first and pass on the returned key value to this resource.",
 	"ERR_INVALID_KEY": "The specified key is not valid. Call /register/ first to register a user and obtain a valid key.",
 	"ERR_MISSING_DATA": "Missing data value.",
+	"ERR_MISSING_REC": "Missing recipient value.",
+	"ERR_INVALID_REC": "The recipient does not exist.",
 };
 var html_headers = "\
 <!DOCTYPE html>\
@@ -50,7 +51,7 @@ var html_footers = "\
 var html_main = "\
    <div class='jumbotron'>\
    <h1>" + appname + "</h1>\
-   <p>This is the main page of a simple JSON-based chat application. From here, you can accesss a Bootstrap web client, or access the JSON API directly.</p>\
+   <p>This is the main page of a the JSON-based chat application. From here, you can accesss a simple proof of concept Bootstrap web client, or access the JSON API directly.</p>\
    <p><a href='http://github.com/dendory' class='btn btn-primary btn-lg' role='button'>Learn more &raquo;</a></p>\
    </div>\
    <h2>Web client</h2>\
@@ -67,7 +68,8 @@ var html_main = "\
    <tr><td><a href='/register/'>/register/</a></td><td>Register a user</td></tr>\
    <tr><td><a href='/users/'>/users/</a></td><td>See a list of users</td></tr>\
    <tr><td><a href='/post/'>/post/</a></td><td>Post a message to the public feed</td></tr>\
-   <tr><td><a href='/feed/'>/feed/</a></td><td>View the public feed</td></tr>\
+   <tr><td><a href='/message/'>/post/</a></td><td>Send a message to a current user</td></tr>\
+   <tr><td><a href='/feed/'>/feed/</a></td><td>View the public feed along with your messages</td></tr>\
 ";
 
 // Main loop
@@ -100,10 +102,25 @@ function process_request()
 		else if(!find_user(q['key'])) err(400, "ERR_INVALID_KEY");
 		else
 		{
-			post(q['key'], q['data']);
+			post(q['key'], q['data'], "*");
 			res.writeHead(200, {"Content-Type": "application/json"});
 			json["status"] = "OK";
 			json["message"] = "Post added to the feed.";
+		}
+	}
+	else if(p == "/message/")    // Send a message
+	{
+		if(!q['key']) err(400, "ERR_MISSING_KEY");
+		else if(!q['data']) err(400, "ERR_MISSING_DATA");
+		else if(!find_user(q['key'])) err(400, "ERR_INVALID_KEY");
+		else if(!q['recipient']) err(400, "ERR_MISSING_REC");
+		else if(!users[q['recipient']]) err(400, "ERR_INVALID_REC");
+		else
+		{
+			post(q['key'], q['data'], q['recipient']);
+			res.writeHead(200, {"Content-Type": "application/json"});
+			json["status"] = "OK";
+			json["message"] = "Message sent.";
 		}
 	}
 	else if(p == "/feed/")   // see all messages
@@ -112,7 +129,9 @@ function process_request()
 		for(i=0; i<posts.length; i++)
 		{
 			if(!q['since'] || parseInt(posts[i]['time']) > parseInt(q['since']))
-			{ tmpfeed.push({"time": posts[i]['time'], "user": posts[i]['user'], "data": posts[i]['data'], "index": posts[i]['index']}); }
+			{
+				if(posts[i]['to'] == "*" || (q['key'] && posts[i]['to'] == find_user(q['key']))) tmpfeed.push({"time": posts[i]['time'], "user": posts[i]['user'], "data": posts[i]['data'], "index": posts[i]['index'], "to": posts[i]['to']}); 
+			}
 		}
 		json['feed'] = tmpfeed;
 	}
@@ -139,8 +158,8 @@ function process_request()
 		},
 		{
 			"endpoint": "/feed/",
-			"description": "See the public posts.",
-			"input": "since",
+			"description": "See the public posts, plus your messages.",
+			"input": "since key",
 			"output": "status message feed[]",
 		},
 		{
@@ -148,6 +167,12 @@ function process_request()
 			"description": "See a list of users.",
 			"input": "",
 			"output": "status message users[]",
+		},
+		{
+			"endpoint": "/message/",
+			"description": "Send a message to another user.",
+			"input": "recipient key data",
+			"output": "status message",
 		},
 		{
 			"endpoint": "/post/",
@@ -175,7 +200,8 @@ function process_request()
 			else { client_key = q['key']; }
 			if(client_key)
 			{
-				if(q['data']) post(client_key, q['data']);
+				if(q['data'] && q['recipient']) post(client_key, q['data'], q['recipient']);
+				else if(q['data']) post(client_key, q['data'], "*");
 				res.write("<script>var key = '" +  client_key + "';</script>");
 				res.write("<div class='alert alert-success' role='alert'><b>Success!</b> You are now connected.</div>");
 				res.write("<div class='row'><div class='col-sm-8'>");
@@ -183,10 +209,13 @@ function process_request()
 				for(i=0; i<posts.length; i++)
 				{
 					var norm_time = new Date(posts[i]['time'] * 1000).toUTCString();
-					res.write("<div class='list-group-item'><h4 class='list-group-item-heading'>" + posts[i]['user'] + " - " + norm_time + "</h4><p class='list-group-item-text'>" +  posts[i]['data'] + "</p></div>"); 
+					if(posts[i]['to'] == "*") res.write("<div class='list-group-item'><h4 class='list-group-item-heading'>" + posts[i]['user'] + " - " + norm_time + "</h4><p class='list-group-item-text'>" +  posts[i]['data'] + "</p></div>");
+					else if(posts[i]['to'] == find_user(client_key)) res.write("<div class='list-group-item active'><h4 class='list-group-item-heading'>" + posts[i]['user'] + " &gt; you - " + norm_time + "</h4><p class='list-group-item-text'>" +  posts[i]['data'] + "</p></div>");
+					else if(posts[i]['user'] == find_user(client_key)) res.write("<div class='list-group-item active'><h4 class='list-group-item-heading'>you &gt; " + posts[i]['to'] + " - " + norm_time + "</h4><p class='list-group-item-text'>" +  posts[i]['data'] + "</p></div>");
 				}
 				res.write("</div></div><div class='col-sm-4'>");
-				res.write("<div class='list-group'><h2>Post to feed</h2><div class='list-group-item'><form role='form' action='.' method='POST'><input style='margin-bottom: 10px;' class='form-control' type='text' name='data'><input type='hidden' name='key' value='" + client_key + "'><button class='btn btn-lg btn-primary btn-block' type='submit'>Post</button></form></div></div>");
+				res.write("<div class='list-group'><h2>Post to feed</h2><div class='list-group-item'><form role='form' action='.' method='POST'><input style='margin-bottom: 10px;' class='form-control' type='text' placeholder='Message' name='data'><input type='hidden' name='key' value='" + client_key + "'><button class='btn btn-lg btn-primary btn-block' type='submit'>Post</button></form></div></div>");
+				res.write("<div class='list-group'><h2>Send message</h2><div class='list-group-item'><form role='form' action='.' method='POST'><input style='margin-bottom: 10px;' placeholder='Message' class='form-control' type='text' name='data'><input style='margin-bottom: 10px;' class='form-control' placeholder='Recipient' type='text' name='recipient'><input type='hidden' name='key' value='" + client_key + "'><button class='btn btn-lg btn-primary btn-block' type='submit'>Send</button></form></div></div>");
 				res.write("<div class='list-group'><h2>Refresh page</h2><div class='list-group-item'><form role='form' action='.' method='POST'><input type='hidden' name='key' value='" + client_key + "'> <button class='btn btn-lg btn-primary btn-block' type='submit'>Refresh</button></form></div></div>");
 				res.write("<ul class='list-group'><h2>List of users</h2>");
 				for(var j in users) res.write("<li class='list-group-item'>" + j + "</li>");
@@ -205,12 +234,13 @@ function process_request()
 }
 
 // Post data
-function post(key, tmpdata)
+function post(key, tmpdata, receip)
 {
 	var tmpuser = find_user(key);
 	if(allow_html == 0) tmpdata = tmpdata.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-	console.log(unixtime() + ": New post: <" + tmpuser + "> " + tmpdata + " [" + req.connection.remoteAddress + "]");
-	posts.push({"ip": req.connection.remoteAddress, "time": unixtime(), "user": tmpuser, "data": tmpdata, "index": rand_chars(64)});
+	if(receip == "*") console.log(unixtime() + ": New post: <" + tmpuser + "> " + tmpdata + " [" + req.connection.remoteAddress + "]");
+	else console.log(unixtime() + ": New message: <" + tmpuser + "> => <" + receip + "> " + tmpdata + " [" + req.connection.remoteAddress + "]");
+	posts.push({"ip": req.connection.remoteAddress, "time": unixtime(), "user": tmpuser, "data": tmpdata, "index": rand_chars(64), "to": receip});
 }
 			
 // Register a user
