@@ -68,7 +68,7 @@ var html_main = "\
    <tr><td><a href='/register/'>/register/</a></td><td>Register a user</td></tr>\
    <tr><td><a href='/users/'>/users/</a></td><td>See a list of users</td></tr>\
    <tr><td><a href='/post/'>/post/</a></td><td>Post a message to the public feed</td></tr>\
-   <tr><td><a href='/message/'>/post/</a></td><td>Send a message to a current user</td></tr>\
+   <tr><td><a href='/message/'>/message/</a></td><td>Send a message to a current user</td></tr>\
    <tr><td><a href='/feed/'>/feed/</a></td><td>View the public feed along with your messages</td></tr>\
 ";
 
